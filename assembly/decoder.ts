@@ -1,4 +1,4 @@
-import { Buffer } from "./util";
+import { Buffer } from './util';
 
 /**
  * Extend from this class to handle events from parser.
@@ -11,7 +11,9 @@ export abstract class JSONHandler {
 
   setNull(name: string): void {}
 
-  setInteger(name: string, value: i64): void {}
+  setInteger(name: string, value: i64): void { }
+  
+  setFloat(name: string, value: f64): void {}
 
   pushArray(name: string): bool {
     return true;
@@ -32,40 +34,51 @@ export abstract class JSONHandler {
  * to allow easier validation of input.
  */
 export class ThrowingJSONHandler extends JSONHandler {
-    setString(name: string, value: string): void {
-       assert(false, 'Unexpected string field ' + name + ' : "' + value + '"');
-    }
+  setString(name: string, value: string): void {
+    assert(false, 'Unexpected string field ' + name + ' : "' + value + '"');
+  }
 
-    setBoolean(name: string, value: bool): void {
-       assert(false, 'Unexpected bool field ' + name + ' : ' + (value ? 'true' : 'false'));
-    }
+  setBoolean(name: string, value: bool): void {
+    assert(
+      false,
+      'Unexpected bool field ' + name + ' : ' + (value ? 'true' : 'false')
+    );
+  }
 
-    setNull(name: string): void {
-       assert(false, 'Unexpected null field ' + name);
-    }
+  setNull(name: string): void {
+    assert(false, 'Unexpected null field ' + name);
+  }
 
-    setInteger(name: string, value: i64): void {
-       //@ts-ignore integer does have toString
-       assert(false, 'Unexpected integer field ' + name + ' : ' + value.toString());
-    }
+  setInteger(name: string, value: i64): void {
+    //@ts-ignore integer does have toString
+    assert(
+      false,
+      'Unexpected integer field ' + name + ' : ' + value.toString()
+    );
+  }
 
-    pushArray(name: string): bool {
-        assert(false, 'Unexpected array field ' + name);
-        return true;
-    }
+  setFloat(name: string, value: f64): void {
+    //@ts-ignore float does have toString
+    assert(false, 'Unexpected float field ' + name + ' : ' + value.toString());
+  }
 
-    pushObject(name: string): bool {
-        assert(false, 'Unexpected object field ' + name);
-        return true;
-    }
+  pushArray(name: string): bool {
+    assert(false, 'Unexpected array field ' + name);
+    return true;
+  }
+
+  pushObject(name: string): bool {
+    assert(false, 'Unexpected object field ' + name);
+    return true;
+  }
 }
 
 //@ts-ignore: decorator
-@lazy const TRUE_STR = "true";
+@lazy const TRUE_STR = 'true';
 //@ts-ignore: decorator
-@lazy const FALSE_STR = "false";
+@lazy const FALSE_STR = 'false';
 //@ts-ignore: decorator
-@lazy const NULL_STR = "null";
+@lazy const NULL_STR = 'null';
 //@ts-ignore: decorator
 @lazy const CHAR_0: i32 = 48; //"0".charCodeAt(0);
 //@ts-ignore: decorator
@@ -74,14 +87,16 @@ export class ThrowingJSONHandler extends JSONHandler {
 @lazy const CHAR_A: i32 = 65; //"A".charCodeAt(0);
 //@ts-ignore: decorator
 @lazy const CHAR_A_LOWER: i32 = 97; //"a".charCodeAt(0);
+//@ts-ignore: decorator
+@lazy const CHAR_DOT: i32 = 46; //".".charCodeAt(0);
 
 export class DecoderState {
-  lastKey: string = "";
+  lastKey: string = '';
   readIndex: i32 = 0;
-  constructor(public buffer: Uint8Array){}
+  constructor(public buffer: Uint8Array) {}
 
   get ptr(): usize {
-      return Buffer.getDataPtr(this.buffer);
+    return Buffer.getDataPtr(this.buffer);
   }
 
   readString(start: usize, end: usize = this.readIndex): string {
@@ -94,7 +109,7 @@ export class JSONDecoder<JSONHandlerT extends JSONHandler> {
   _state: DecoderState | null = null;
 
   constructor(handler: JSONHandlerT) {
-        this.handler = handler;
+    this.handler = handler;
   }
 
   get state(): DecoderState {
@@ -105,14 +120,17 @@ export class JSONDecoder<JSONHandlerT extends JSONHandler> {
     this._state = state;
   }
 
-  deserialize(buffer: Uint8Array, decoderState: DecoderState | null = null): void {
-        if (decoderState != null) {
-            this.state = decoderState;
-        } else {
+  deserialize(
+    buffer: Uint8Array,
+    decoderState: DecoderState | null = null
+  ): void {
+    if (decoderState != null) {
+      this.state = decoderState;
+    } else {
       this.state = new DecoderState(buffer);
     }
 
-    assert(this.parseValue(), "Cannot parse JSON");
+    assert(this.parseValue(), 'Cannot parse JSON');
     // TODO: Error if input left
   }
 
@@ -121,47 +139,51 @@ export class JSONDecoder<JSONHandlerT extends JSONHandler> {
       return -1;
     }
     return this.state.buffer[this.state.readIndex];
-    }
+  }
 
-    private readChar(): i32 {
-        assert(this.state.readIndex < this.state.buffer.length, "Unexpected input end");
-        return this.state.buffer[this.state.readIndex++];
-    }
+  private readChar(): i32 {
+    assert(
+      this.state.readIndex < this.state.buffer.length,
+      'Unexpected input end'
+    );
+    return this.state.buffer[this.state.readIndex++];
+  }
 
-    private parseValue(): bool {
-        this.skipWhitespace();
-        let result = this.parseObject()
-            || this.parseArray()
-            || this.parseString()
-            || this.parseBoolean()
-            || this.parseNumber()
-            || this.parseNull()
-        this.skipWhitespace();
-        return result;
-    }
+  private parseValue(): bool {
+    this.skipWhitespace();
+    let result =
+      this.parseObject() ||
+      this.parseArray() ||
+      this.parseString() ||
+      this.parseBoolean() ||
+      this.parseNumber() ||
+      this.parseNull();
+    this.skipWhitespace();
+    return result;
+  }
 
   private parseObject(): bool {
-    if (this.peekChar() != "{".charCodeAt(0)) {
+    if (this.peekChar() != '{'.charCodeAt(0)) {
       return false;
     }
     let key = this.state.lastKey;
     //@ts-ignore can be null
-    this.state.lastKey = "";
+    this.state.lastKey = '';
     if (this.handler.pushObject(key)) {
       this.readChar();
       this.skipWhitespace();
 
       let firstItem = true;
-      while (this.peekChar() != "}".charCodeAt(0)) {
+      while (this.peekChar() != '}'.charCodeAt(0)) {
         if (!firstItem) {
-          assert(this.readChar() == ",".charCodeAt(0), "Expected ','");
+          assert(this.readChar() == ','.charCodeAt(0), "Expected ','");
         } else {
           firstItem = false;
         }
         this.parseKey();
         this.parseValue();
       }
-      assert(this.readChar() == "}".charCodeAt(0), "Unexpected end of object");
+      assert(this.readChar() == '}'.charCodeAt(0), 'Unexpected end of object');
     }
     this.handler.popObject();
     return true;
@@ -171,30 +193,30 @@ export class JSONDecoder<JSONHandlerT extends JSONHandler> {
     this.skipWhitespace();
     this.state.lastKey = this.readString();
     this.skipWhitespace();
-    assert(this.readChar() == ":".charCodeAt(0), "Expected ':'");
+    assert(this.readChar() == ':'.charCodeAt(0), "Expected ':'");
   }
 
   private parseArray(): bool {
-    if (this.peekChar() != "[".charCodeAt(0)) {
+    if (this.peekChar() != '['.charCodeAt(0)) {
       return false;
     }
     let key = this.state.lastKey;
     //@ts-ignore can be null
-    this.state.lastKey = "";
+    this.state.lastKey = '';
     if (this.handler.pushArray(key)) {
       this.readChar();
       this.skipWhitespace();
 
       let firstItem = true;
-      while (this.peekChar() != "]".charCodeAt(0)) {
+      while (this.peekChar() != ']'.charCodeAt(0)) {
         if (!firstItem) {
-          assert(this.readChar() == ",".charCodeAt(0), "Expected ','");
+          assert(this.readChar() == ','.charCodeAt(0), "Expected ','");
         } else {
           firstItem = false;
         }
         this.parseValue();
       }
-      assert(this.readChar() == "]".charCodeAt(0), "Unexpected end of array");
+      assert(this.readChar() == ']'.charCodeAt(0), 'Unexpected end of array');
     }
     this.handler.popArray();
     return true;
@@ -206,24 +228,27 @@ export class JSONDecoder<JSONHandlerT extends JSONHandler> {
     }
     this.handler.setString(this.state.lastKey, this.readString());
     return true;
-    }
+  }
 
   private readString(): string {
-    assert(this.readChar() == '"'.charCodeAt(0), "Expected double-quoted string");
+    assert(
+      this.readChar() == '"'.charCodeAt(0),
+      'Expected double-quoted string'
+    );
     let savedIndex = this.state.readIndex;
     //@ts-ignore can be null
     let stringParts: Array<string> = new Array<string>();
     for (;;) {
       let byte = this.readChar();
-      assert(byte >= 0x20, "Unexpected control character");
+      assert(byte >= 0x20, 'Unexpected control character');
       if (byte == '"'.charCodeAt(0)) {
         let s = this.state.readString(savedIndex);
         if (stringParts.length == 0) {
           return s;
         }
         stringParts.push(s);
-        return stringParts.join("");
-      } else if (byte == "\\".charCodeAt(0)) {
+        return stringParts.join('');
+      } else if (byte == '\\'.charCodeAt(0)) {
         if (this.state.readIndex > savedIndex + 1) {
           stringParts.push(this.state.readString(savedIndex));
         }
@@ -232,7 +257,7 @@ export class JSONDecoder<JSONHandlerT extends JSONHandler> {
       }
     }
     // Should never happen
-    return "";
+    return '';
   }
 
   private readEscapedChar(): string {
@@ -241,25 +266,25 @@ export class JSONDecoder<JSONHandlerT extends JSONHandler> {
     if (byte == '"'.charCodeAt(0)) {
       return '"';
     }
-    if (byte == "\\".charCodeAt(0)) {
-      return "\\";
+    if (byte == '\\'.charCodeAt(0)) {
+      return '\\';
     }
-    if (byte == "/".charCodeAt(0)) {
-      return "/";
+    if (byte == '/'.charCodeAt(0)) {
+      return '/';
     }
-    if (byte == "b".charCodeAt(0)) {
-      return "\b";
+    if (byte == 'b'.charCodeAt(0)) {
+      return '\b';
     }
-    if (byte == "n".charCodeAt(0)) {
-      return "\n";
+    if (byte == 'n'.charCodeAt(0)) {
+      return '\n';
     }
-    if (byte == "r".charCodeAt(0)) {
-      return "\r";
+    if (byte == 'r'.charCodeAt(0)) {
+      return '\r';
     }
-    if (byte == "t".charCodeAt(0)) {
-      return "\t";
+    if (byte == 't'.charCodeAt(0)) {
+      return '\t';
     }
-    if (byte == "u".charCodeAt(0)) {
+    if (byte == 'u'.charCodeAt(0)) {
       let d1 = this.readHexDigit();
       let d2 = this.readHexDigit();
       let d3 = this.readHexDigit();
@@ -267,8 +292,8 @@ export class JSONDecoder<JSONHandlerT extends JSONHandler> {
       let charCode = d1 * 0x1000 + d2 * 0x100 + d3 * 0x10 + d4;
       return String.fromCodePoint(charCode);
     }
-    assert(false, "Unexpected escaped character: " + String.fromCharCode(byte));
-    return "";
+    assert(false, 'Unexpected escaped character: ' + String.fromCharCode(byte));
+    return '';
   }
 
   private readHexDigit(): i32 {
@@ -281,27 +306,31 @@ export class JSONDecoder<JSONHandlerT extends JSONHandler> {
       }
     }
     let arr: Array<i32> = [byte, digit];
-    assert(digit >= 0 && digit < 16, "Unexpected \\u digit");
+    assert(digit >= 0 && digit < 16, 'Unexpected \\u digit');
     return digit;
   }
 
   private parseNumber(): bool {
     // TODO: Parse floats
-    let number: i64 = 0;
-    let sign: i64 = 1;
-    if (this.peekChar() == "-".charCodeAt(0)) {
+    let stringParts: Array<string> = new Array<string>();
+    let sign: f64 = 1;
+    if (this.peekChar() == '-'.charCodeAt(0)) {
       sign = -1;
-            this.readChar();
-        }
-        let digits = 0;
-        while (CHAR_0 <= this.peekChar() && this.peekChar() <= CHAR_9 ) {
-            let byte = this.readChar();
-            number *= 10;
-            number += byte - CHAR_0;
+      this.readChar();
+    }
+    let digits = 0;
+    let isFloat = false
+    while ((CHAR_0 <= this.peekChar() && this.peekChar() <= CHAR_9) || this.peekChar() === CHAR_DOT) {
+      let byte = this.readChar();
+      if (byte === CHAR_DOT) {
+        isFloat = true
+      }
+      stringParts.push(String.fromCharCode(byte))
       digits++;
     }
     if (digits > 0) {
-      this.handler.setInteger(this.state.lastKey, number * sign);
+      const str = stringParts.join('')
+      this.handler.setFloat(this.state.lastKey, (isFloat ? parseFloat(str) : parseInt(str, 10)) * sign);
       return true;
     }
     return false;
@@ -341,9 +370,11 @@ export class JSONDecoder<JSONHandlerT extends JSONHandler> {
     while (this.isWhitespace(this.peekChar())) {
       this.readChar();
     }
-    }
+  }
 
-    private isWhitespace(charCode: i32): bool {
-        return charCode == 0x9 || charCode == 0xa || charCode == 0xd || charCode == 0x20;
-    }
+  private isWhitespace(charCode: i32): bool {
+    return (
+      charCode == 0x9 || charCode == 0xa || charCode == 0xd || charCode == 0x20
+    );
+  }
 }

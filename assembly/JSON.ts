@@ -1,5 +1,5 @@
-import { Buffer } from "./util";
-import { JSONDecoder } from "./decoder";
+import { Buffer } from './util';
+import { JSONDecoder } from './decoder';
 
 class Handler {
   stack: JSON.Value[] = new Array<JSON.Value>();
@@ -34,12 +34,17 @@ class Handler {
     this.addValue(name, obj);
   }
 
+  setFloat(name: string, value: f64): void {
+    const obj = JSON.Value.Number(value);
+    this.addValue(name, obj);
+  }
+
   pushArray(name: string): bool {
     const obj: JSON.Value = JSON.Value.Array();
     if (this.stack.length == 0) {
       this.stack.push(obj);
     } else {
-      this.addValue(name, obj)
+      this.addValue(name, obj);
       this.stack.push(obj);
     }
     return true;
@@ -71,21 +76,24 @@ class Handler {
     }
     if (this.peek instanceof JSON.Obj) {
       (this.peek as JSON.Obj).set(name, obj);
-    }
-    else if (this.peek instanceof JSON.Arr) {
+    } else if (this.peek instanceof JSON.Arr) {
       (<JSON.Arr>this.peek).push(obj);
     }
   }
 }
 
 namespace _JSON {
-  @lazy export const handler: Handler = new Handler();
-  @lazy export const decoder: JSONDecoder<Handler> = new JSONDecoder<Handler>(_JSON.handler);
-  
+  @lazy
+  export const handler: Handler = new Handler();
+  @lazy
+  export const decoder: JSONDecoder<Handler> = new JSONDecoder<Handler>(
+    _JSON.handler
+  );
+
   /** Parses a string or Uint8Array and returns a Json Value. */
   export function parse<T = Uint8Array>(str: T): JSON.Value {
     var arr: Uint8Array;
-    if (isString<T>(str)){
+    if (isString<T>(str)) {
       arr = Buffer.fromString(<string>str);
     } else {
       arr = changetype<Uint8Array>(str);
@@ -98,13 +106,12 @@ namespace _JSON {
 }
 
 //@ts-ignore
-@global
 export namespace JSON {
   export abstract class Value {
     static String(str: string): Str {
       return new Str(str);
     }
-    static Number(num: i64): Num {
+    static Number(num: f64): Num {
       return new Num(num);
     }
     static Bool(b: bool): Bool {
@@ -139,7 +146,7 @@ export namespace JSON {
       if (this instanceof Obj) {
         return (<Obj>this).toString();
       }
-      throw new Error("Not a value.");
+      throw new Error('Not a value.');
     }
   }
 
@@ -149,12 +156,12 @@ export namespace JSON {
     }
 
     toString(): string {
-      return "\"" + this._str + "\"";
+      return '"' + this._str + '"';
     }
   }
 
   export class Num extends Value {
-    constructor(public _num: i64) {
+    constructor(public _num: f64) {
       super();
     }
 
@@ -169,10 +176,10 @@ export namespace JSON {
     }
 
     toString(): string {
-      return "null";
+      return 'null';
     }
   }
- 
+
   export class Bool extends Value {
     constructor(public _bool: bool) {
       super();
@@ -195,7 +202,15 @@ export namespace JSON {
     }
 
     toString(): string {
-      return "[" + this._arr.map<string>((val: Value,i: i32,_arr: Value[]): string  => val.toString()).join(",") + "]";
+      return (
+        '[' +
+        this._arr
+          .map<string>((val: Value, i: i32, _arr: Value[]): string =>
+            val.toString()
+          )
+          .join(',') +
+        ']'
+      );
     }
   }
 
@@ -210,14 +225,13 @@ export namespace JSON {
     }
 
     set<T>(key: string, value: T): void {
-      if (isReference<T>(value)){
+      if (isReference<T>(value)) {
         if (value instanceof Value) {
           this._set(key, <Value>value);
           return;
         }
       }
       this._set(key, from<T>(value));
-
     }
     private _set(key: string, value: Value): void {
       if (!this._obj.has(key)) {
@@ -236,9 +250,11 @@ export namespace JSON {
     toString(): string {
       const objs: string[] = [];
       for (let i: i32 = 0; i < this.keys.length; i++) {
-        objs.push("\"" + this.keys[i] + "\":" + this._obj.get(this.keys[i]).toString());
+        objs.push(
+          '"' + this.keys[i] + '":' + this._obj.get(this.keys[i]).toString()
+        );
       }
-      return "{" + objs.join(",") + "}";
+      return '{' + objs.join(',') + '}';
     }
 
     has(key: string): bool {
@@ -246,7 +262,6 @@ export namespace JSON {
     }
   }
 
-  
   export function from<T>(val: T): Value {
     if (isBoolean<T>(val)) {
       return Value.Bool(<bool>val);
@@ -271,13 +286,14 @@ export namespace JSON {
     /**
      * TODO: add object support.
      */
-    return Value.Object();
+    const obj = Value.Object();
+    obj.set('a', '1');
+    return obj;
   }
   //@ts-ignore
   @inline
-  /** Parses a string or Uint8Array and returns a Json Value. */
-  export function parse<T = Uint8Array>(str: T): Value {
+  export function /** Parses a string or Uint8Array and returns a Json Value. */
+  parse<T = Uint8Array>(str: T): Value {
     return _JSON.parse(str);
   }
 }
-

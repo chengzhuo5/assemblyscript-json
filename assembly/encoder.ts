@@ -45,6 +45,10 @@ export class JSONEncoder {
         this.writeInteger(value);
     }
 
+    setFloat(name: string | null, value: f64): void {
+        this.writeKey(name);
+        this.writeFloat(value);
+    }
     pushArray(name: string | null): bool {
         this.writeKey(name);
         this.write("[");
@@ -122,6 +126,10 @@ export class JSONEncoder {
         this.write(value.toString());
     }
 
+    private writeFloat(value: f64): void {
+        //@ts-ignore integer does have toString
+        this.write(value.toString());
+    }
     private write(str: string): void {
         this.result.push(str);
     }
